@@ -22,6 +22,9 @@ OPTIONS
   --verbose, -v
     Progress is printed to STDERR
 
+  --database, -d
+    Instead of printing records to STDOUT, insert them into the database
+    specified by the database.yml file
 EOS
 end
 
@@ -36,6 +39,7 @@ class TelecommuterList
     @seen_titles = Hash.new
     @section     = section
     @options     = options
+    establish_db_connection if @options[:database]
   end
 
   def crawl
@@ -52,6 +56,10 @@ class TelecommuterList
   end
 
   private
+  def establish_db_connection
+    TelecommuterList.send :include, DbMethods
+  end
+
   def crawl_page(href)
     Nokogiri::HTML(HTTPClient.get_content(href))
   end
@@ -114,10 +122,19 @@ class TelecommuterList
 
 end
 
+module DbMethods
+  require 'activerecord' # TGA says: This is big - hence conditional include
+  ActiveRecord::Base.establish_connection(YAML.load(File.read('database.yml')))
+  ActiveRecord::Base.logger = Logger.new(STDOUT)
+  class Job < ActiveRecord::Base
+  end
+end
+
 if __FILE__ == $0
   require 'getoptlong'
   args = [["--verbose", "-v", GetoptLong::NO_ARGUMENT],
-          ["--usage",   "-h", GetoptLong::NO_ARGUMENT]
+          ["--usage",   "-h", GetoptLong::NO_ARGUMENT],
+          ["--database", "-d", GetoptLong::NO_ARGUMENT]
          ]
 
   options = {}
@@ -125,6 +142,7 @@ if __FILE__ == $0
     case opt
     when "--usage" then puts usage; exit(0);
     when "--verbose" then options[:verbose] = true
+    when "--database" then options[:database] = true
     end
   end
   if ARGV.size < 1 then puts usage; exit(0); end
