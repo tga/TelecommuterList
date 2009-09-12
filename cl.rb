@@ -65,6 +65,12 @@ class TelecommuterList
   end
 
   def generate_results(url, link)
+    if @options[:database] then generate_db_results(url, link)
+    else                        generate_html_results(url, link)
+    end
+  end
+
+  def generate_html_results(url, link)
     base_href = url.match(/^http:\/\/.+\.craigslist.\w+/)[0]
     begin
       search_results = crawl_page(url)
@@ -92,6 +98,44 @@ class TelecommuterList
       STDERR.puts "ERROR: Couldn't read " + url
       #rescue OpenURI::HTTPError
       #  STDERR.puts 'ERROR: 404 on ' + url
+    end
+  end
+
+  def generate_db_results(url, link)
+    base_href = url.match(/^http:\/\/.+\.craigslist.\w+/)[0]
+    begin
+      search_results = crawl_page(url)
+      search_results.search('p').each do |p|
+        job = Job.new(:geo => link.content, :section => @section)
+        post_link = p.search('a').first
+        # Remove the trailing "- " from the job title
+        job.title = post_link.content.match(/(.+)\s+-\s*$/)[1]
+        if post_link.attributes['href'].to_s[0,1] == '/'
+          job.href = base_href + post_link.attributes['href'].to_s
+        else
+          job.href = post_link.attributes['href'].to_s
+        end
+        d_parts = p.content.match(/^\s*(\w+)\s+(\d+)\s+/)
+        if d_parts.nil?
+          if @options[:verbose]
+            $stderr.puts "Date missing from #{job.title}:\n #{job.inspect}"
+          end
+        else
+          job.posted_at = DateTime.new(Time.now.year, 
+                                       Date::ABBR_MONTHNAMES.index(d_parts[1]),
+                                       d_parts[2].to_i)
+        end
+        if !@seen_urls[job.href] && !@seen_titles[job.title]
+          unless job.save
+            if @options[:verbose]
+              $stderr.puts "\"#{job.title}\" already in database"
+            end
+          end
+          @seen_urls[job.href], @seen_titles[job.title] = true, true
+        end
+      end
+    rescue SocketError => socket_error
+      STDERR.puts "ERROR: Couldn't read " + url
     end
   end
 
@@ -127,6 +171,7 @@ module DbMethods
   ActiveRecord::Base.establish_connection(YAML.load(File.read('database.yml')))
   ActiveRecord::Base.logger = Logger.new(STDOUT)
   class Job < ActiveRecord::Base
+    validates_uniqueness_of :href
   end
 end
 
