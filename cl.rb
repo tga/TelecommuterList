@@ -12,6 +12,7 @@ require 'httpclient'
 
 class TelecommuterList
   def initialize(section)
+    raise "Specify a section of craigslist to parse, eg. med, sad, sof, tch, web" if section.nil? || section.empty?
     @seen_urls   = Hash.new
     @seen_titles = Hash.new
     @section      = section
