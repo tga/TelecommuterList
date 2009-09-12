@@ -18,6 +18,24 @@ class TelecommuterList
     @section      = section
   end
 
+  def crawl
+    geo_page_root = crawl_page('http://craigslist.org')
+    i = 0
+
+    # This collects all of the city links (and possibly some menu links)
+    # from the root craigslist page, and passes them to the geo-page parser
+    geo_page_root.search('td').each do |td|
+      td.search('a').each { |link| parse_geo(link) } if i > 10 && i < 19
+      i+=1
+    end
+    STDERR.puts 'Total of ' + @seen_titles.length.to_s + ' unique records found.'
+  end
+
+  private
+  def crawl_page(href)
+    Nokogiri::HTML(HTTPClient.get_content(href))
+  end
+
   def generate_results(url, link)
     base_href = url.match(/^http:\/\/.+\.craigslist.\w+/)[0]
     begin
@@ -47,24 +65,6 @@ class TelecommuterList
       #rescue OpenURI::HTTPError
       #  STDERR.puts 'ERROR: 404 on ' + url
     end
-  end
-
-  def crawl
-    geo_page_root = crawl_page('http://craigslist.org')
-    i = 0
-
-    # This collects all of the city links (and possibly some menu links)
-    # from the root craigslist page, and passes them to the geo-page parser
-    geo_page_root.search('td').each do |td|
-      td.search('a').each { |link| parse_geo(link) } if i > 10 && i < 19
-      i+=1
-    end
-    STDERR.puts 'Total of ' + @seen_titles.length.to_s + ' unique records found.'
-  end
-
-  private
-  def crawl_page(href)
-    Nokogiri::HTML(HTTPClient.get_content(href))
   end
 
   def parse_geo(link)
