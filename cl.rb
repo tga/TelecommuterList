@@ -57,8 +57,8 @@ class TelecommuterList
     geo_page_root.search('td').each do |td|
       td.search('a').each { |link| parse_geo(link) } if i > 10 && i < 19
       i+=1
-      STDERR.puts 'Total of ' + @seen_titles.length.to_s + ' unique records found.'
     end
+    STDERR.puts 'Total of ' + @seen_titles.length.to_s + ' unique records found.'
   end
 
   private
