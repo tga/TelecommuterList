@@ -1,21 +1,41 @@
 #!/usr/bin/env ruby
 
-#
-# This can be run like so:
-#
-# ruby cl.rb sof > sof_posts.html
-#
+def usage
+<<-EOS
+NAME
+  cl.rb - Craigslist spider for remote jobs
+
+SYNOPSIS
+
+  ruby cl.rb sof > sof_posts.html
+
+DESCRIPTION
+
+  A craigslist spider created by reddit user jdunn that collects
+  telecommuter jobs from all over the world.
+
+OPTIONS
+
+  --usage, -h
+    Prints this message
+
+  --verbose, -v
+    Progress is printed to STDERR
+
+EOS
+end
 
 require 'rubygems'
 require 'nokogiri'
 require 'httpclient'
 
 class TelecommuterList
-  def initialize(section)
+  def initialize(section, options)
     raise "Specify a section of craigslist to parse, eg. med, sad, sof, tch, web" if section.nil? || section.empty?
     @seen_urls   = Hash.new
     @seen_titles = Hash.new
-    @section      = section
+    @section     = section
+    @options     = options
   end
 
   def crawl
@@ -28,7 +48,7 @@ class TelecommuterList
       td.search('a').each { |link| parse_geo(link) } if i > 10 && i < 19
       i+=1
     end
-    STDERR.puts 'Total of ' + @seen_titles.length.to_s + ' unique records found.'
+    STDERR.puts 'Total of ' + @seen_titles.length.to_s + ' unique records found.' if @options[:verbose]
   end
 
   private
@@ -95,6 +115,20 @@ class TelecommuterList
 end
 
 if __FILE__ == $0
-  spider = TelecommuterList.new(ARGV[0])
+  require 'getoptlong'
+  args = [["--verbose", "-v", GetoptLong::NO_ARGUMENT],
+          ["--usage",   "-h", GetoptLong::NO_ARGUMENT]
+         ]
+
+  options = {}
+  GetoptLong.new(*args).each do |opt, arg|
+    case opt
+    when "--usage" then puts usage; exit(0);
+    when "--verbose" then options[:verbose] = true
+    end
+  end
+  if ARGV.size < 1 then puts usage; exit(0); end
+
+  spider = TelecommuterList.new(ARGV[0], options)
   spider.crawl
 end
