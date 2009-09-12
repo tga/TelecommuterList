@@ -20,7 +20,7 @@ class TelecommuterList
   def generate_results(url, link)
     base_href = url.match(/^http:\/\/.+\.craigslist.\w+/)[0]
     begin
-      search_results = Nokogiri::HTML(HTTPClient.get_content(url))
+      search_results = crawl_page(url)
       search_results.search('p').each do |p|
         d_parts = p.content.match(/^\s*(\w+)\s+(\d+)\s+/)
         if d_parts.nil?
@@ -49,7 +49,7 @@ class TelecommuterList
   end
 
   def crawl
-    page = Nokogiri::HTML(HTTPClient.get_content('http://craigslist.org'))
+    geo_page_root = crawl_page('http://craigslist.org')
 
     i = 0
     page.search('td').each do |td|
@@ -59,7 +59,7 @@ class TelecommuterList
           if href =~ /^http:\/\/geo/
             geo_page_head = HTTPClient.head(href).header
             if geo_page_head.status_code == 200
-              geo_page = Nokogiri::HTML(HTTPClient.get_content(href))
+              geo_page = crawl_page(href)
               geo_page.search('//div/a').each do |geo_link|
                 url = geo_link.attributes['href'].to_s + 'search/sof?query=&catAbbreviation=' + @section + '&addOne=telecommuting'
                 generate_results(url, link)
@@ -83,6 +83,12 @@ class TelecommuterList
       STDERR.puts 'Total of ' + @seen_titles.length.to_s + ' unique records found.'
     end
   end
+
+  private
+  def crawl_page(href)
+    Nokogiri::HTML(HTTPClient.get_content(href))
+  end
+
 end
 
 if __FILE__ == $0
