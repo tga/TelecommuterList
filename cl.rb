@@ -50,35 +50,12 @@ class TelecommuterList
 
   def crawl
     geo_page_root = crawl_page('http://craigslist.org')
-
     i = 0
-    page.search('td').each do |td|
-      if i > 10 && i < 19
-        td.search('a').each do |link|
-          href = link.attributes['href'].to_s
-          if href =~ /^http:\/\/geo/
-            geo_page_head = HTTPClient.head(href).header
-            if geo_page_head.status_code == 200
-              geo_page = crawl_page(href)
-              geo_page.search('//div/a').each do |geo_link|
-                url = geo_link.attributes['href'].to_s + 'search/sof?query=&catAbbreviation=' + @section + '&addOne=telecommuting'
-                generate_results(url, link)
-                #sleep 1
-              end
-            else
-              url = geo_page_head['Location'][0] + '/search/sof?query=&catAbbreviation=' + @section + '&addOne=telecommuting'
-              generate_results(url, link)
-              #sleep 1
-            end
-          else
-            if false
-              url = href + 'search/sof?query=&catAbbreviation=' + @section + '&addOne=telecommuting'
-              generate_results(url, link)
-              #sleep 1
-            end
-          end
-        end
-      end
+
+    # This collects all of the city links (and possibly some menu links)
+    # from the root craigslist page, and passes them to the geo-page parser
+    geo_page_root.search('td').each do |td|
+      td.search('a').each { |link| parse_geo(link) } if i > 10 && i < 19
       i+=1
       STDERR.puts 'Total of ' + @seen_titles.length.to_s + ' unique records found.'
     end
@@ -87,6 +64,31 @@ class TelecommuterList
   private
   def crawl_page(href)
     Nokogiri::HTML(HTTPClient.get_content(href))
+  end
+
+  def parse_geo(link)
+    href = link.attributes['href'].to_s
+    if href =~ /^http:\/\/geo/
+      geo_page_head = HTTPClient.head(href).header
+      if geo_page_head.status_code == 200
+        geo_page = crawl_page(href)
+        geo_page.search('//div/a').each do |geo_link|
+          url = geo_link.attributes['href'].to_s + 'search/sof?query=&catAbbreviation=' + @section + '&addOne=telecommuting'
+          generate_results(url, link)
+          #sleep 1
+        end
+      else
+        url = geo_page_head['Location'][0] + '/search/sof?query=&catAbbreviation=' + @section + '&addOne=telecommuting'
+        generate_results(url, link)
+        #sleep 1
+      end
+    else
+      if false
+        url = href + 'search/sof?query=&catAbbreviation=' + @section + '&addOne=telecommuting'
+        generate_results(url, link)
+        #sleep 1
+      end
+    end
   end
 
 end
